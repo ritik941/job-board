@@ -228,6 +228,8 @@ def reject_applicant(app_id):
 
 # CREATE TABLES
 
+with app.app_context():
+    db.create_all()
 
 
 

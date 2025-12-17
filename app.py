@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 from flask_mail import Mail, Message
+from flask_migrate import Migrate  # ✅ Added for migrations
 from models import db, User, Job, Application
 
 app = Flask(__name__)
@@ -25,7 +26,9 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-fallback-key')
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'job_board.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db.init_app(app)
+migrate = Migrate(app, db)  # ✅ Initialize Flask-Migrate
 # ===============================================
 
 # ================= UPLOAD FOLDER =================
@@ -33,7 +36,6 @@ UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ===============================================
-
 
 # ----------------- ROUTES -----------------
 
@@ -154,7 +156,7 @@ def apply_job(job_id):
         job_id=job_id,
         user_id=user.id,
         cover_letter=request.form.get('cover_letter', ''),
-        status="pending"
+        status="pending"  # ✅ Added status
     )
     db.session.add(application)
     db.session.commit()
@@ -188,8 +190,6 @@ def accept_applicant(app_id):
     job = Job.query.get(application.job_id)
 
     try:
-        print("📧 Sending acceptance email to:", user.email)
-
         msg = Message(
             subject=f"Application Accepted for {job.title}",
             recipients=[user.email]
@@ -205,7 +205,6 @@ Regards,
 Job Board Team
 """
         mail.send(msg)
-        print("✅ Acceptance email sent")
 
     except Exception as e:
         print("❌ Email sending failed:", e)
@@ -241,12 +240,7 @@ def reject_applicant(app_id):
     return redirect('/recruiter/dashboard')
 
 
-# ---------- CREATE TABLES ----------
-with app.app_context():
-    db.create_all()
-
-
-# ---------- RUN (RENDER READY) ----------
+# ---------- RUN ----------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)

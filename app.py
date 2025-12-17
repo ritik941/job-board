@@ -6,6 +6,12 @@ from flask_mail import Mail, Message
 from models import db, User, Job, Application
 
 app = Flask(__name__)
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'
+)
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 
@@ -110,8 +116,24 @@ def recruiter_dashboard():
     if 'user_id' not in session or session.get('role') != 'recruiter':
         return redirect('/login')
 
-    jobs = Job.query.filter_by(posted_by=session['user_id']).all()
-    return render_template('recruiter_dashboard.html', jobs=jobs, username=session['username'])
+    recruiter_id = session['user_id']
+
+    jobs = Job.query.filter_by(posted_by=recruiter_id).all()
+
+    applications = (
+        Application.query
+        .join(Job, Application.job_id == Job.id)
+        .filter(Job.posted_by == recruiter_id)
+        .all()
+    )
+
+    return render_template(
+        'recruiter_dashboard.html',
+        jobs=jobs,
+        applications=applications,
+        username=session['username']
+    )
+
 
 
 # ---------- POST JOB ----------
@@ -249,4 +271,5 @@ def reject_applicant(app_id):
 # ---------- RUN ----------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port)
+

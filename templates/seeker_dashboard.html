@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="mb-6">
+      {% for category, message in messages %}
+        <div class="p-3 rounded mb-2
+          {% if category == 'success' %}bg-green-600 text-white
+          {% elif category == 'error' %}bg-red-600 text-white
+          {% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- Header -->
+<div class="mb-10">
+    <h2 class="text-3xl font-bold text-white">Job Seeker Dashboard</h2>
+    <p class="text-gray-400 mt-1">
+        Search jobs & apply easily 🚀
+    </p>
+</div>
+
+<!-- Search & Filters -->
+<form method="GET" class="grid md:grid-cols-3 gap-4 mb-10">
+    <input type="text" name="q"
+           placeholder="Search job title..."
+           value="{{ request.args.get('q','') }}"
+           class="p-3 rounded-lg bg-white/10 text-white
+                  border border-white/20 focus:ring-2
+                  focus:ring-indigo-500 outline-none">
+
+    <input type="text" name="location"
+           placeholder="Location"
+           value="{{ request.args.get('location','') }}"
+           class="p-3 rounded-lg bg-white/10 text-white
+                  border border-white/20 outline-none">
+
+    <button class="bg-indigo-600 hover:bg-indigo-500
+                   rounded-lg text-white font-semibold">
+        Search
+    </button>
+</form>
+
+<!-- Job Listings -->
+{% if jobs %}
+<div class="grid md:grid-cols-2 gap-6">
+    {% for job in jobs %}
+    <div class="bg-white/5 backdrop-blur border border-white/10
+                rounded-2xl p-6 hover:shadow-2xl hover:scale-[1.02]
+                transition duration-300">
+
+        <h3 class="text-xl font-semibold text-indigo-400">
+            {{ job.title }}
+        </h3>
+
+        {% if job.location %}
+        <p class="text-sm text-gray-400 mt-1">
+            📍 {{ job.location }}
+        </p>
+        {% endif %}
+
+        <p class="text-gray-300 mt-3 line-clamp-4">
+            {{ job.description }}
+        </p>
+
+        <!-- Apply Form -->
+        <form method="POST"
+              action="{{ url_for('apply_job', job_id=job.id) }}"
+              enctype="multipart/form-data"
+              class="mt-5 space-y-3">
+
+            <!-- Cover Letter -->
+            <textarea name="cover_letter" rows="3"
+                      placeholder="Cover letter (optional)"
+                      class="w-full p-3 rounded-lg bg-white/10
+                             border border-white/20 text-white
+                             placeholder-gray-400 resize-none
+                             focus:ring-2 focus:ring-indigo-500"></textarea>
+
+            <!-- Resume Upload -->
+            <input type="file" name="resume" required
+                   accept=".pdf,.doc,.docx"
+                   class="w-full text-sm text-gray-300
+                          file:bg-indigo-600 file:text-white
+                          file:border-0 file:px-4 file:py-2
+                          file:rounded-lg file:cursor-pointer
+                          hover:file:bg-indigo-500">
+
+            <!-- Apply Button -->
+            <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-500
+                           px-5 py-2 rounded-lg text-white
+                           font-semibold transition">
+                Apply Now
+            </button>
+        </form>
+
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<p class="text-center text-gray-400">
+    No jobs found.
+</p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Page Header -->
+<div class="text-center mb-10">
+    <h2 class="text-3xl font-bold text-white">Available Jobs</h2>
+    <p class="text-gray-400 mt-1">Apply with your uploaded resume in one click 🚀</p>
+</div>
+
+<!-- Search & Filters -->
+<form method="GET" class="grid md:grid-cols-4 gap-4 mb-10 max-w-4xl mx-auto">
+    <input type="text" name="q" placeholder="Job title..."
+           value="{{ request.args.get('q','') }}"
+           class="p-3 rounded-lg bg-white/10 text-white border border-white/20 focus:ring-2 focus:ring-indigo-500 outline-none">
+    <input type="text" name="location" placeholder="Location"
+           value="{{ request.args.get('location','') }}"
+           class="p-3 rounded-lg bg-white/10 text-white border border-white/20 outline-none">
+    <select name="job_type" class="p-3 rounded-lg bg-white/10 text-white border border-white/20">
+        <option value="">Job Type</option>
+        <option value="Full Time">Full Time</option>
+        <option value="Part Time">Part Time</option>
+        <option value="Internship">Internship</option>
+        <option value="Remote">Remote</option>
+    </select>
+    <button class="bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-semibold">Search</button>
+</form>
+
+{% if jobs %}
+<div class="grid md:grid-cols-2 gap-6">
+
+    {% for job in jobs %}
+    <div class="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-6 hover:shadow-2xl hover:scale-[1.02] transition duration-300">
+
+        <!-- Job Title -->
+        <h3 class="text-xl font-semibold text-indigo-400">{{ job.title }}</h3>
+        <p class="text-sm text-gray-400 mt-1">📍 {{ job.location }} • {{ job.job_type }}</p>
+
+        <!-- Job Description -->
+        <p class="text-gray-300 mt-3 line-clamp-4">{{ job.description }}</p>
+
+        <!-- Apply Form -->
+        <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" class="mt-5">
+
+            {% if current_user.resume %}
+                <p class="text-green-400 mb-2">✔ Using uploaded resume: {{ current_user.resume }}</p>
+            {% else %}
+                <p class="text-red-400 mb-2">Please upload your resume first in your dashboard!</p>
+            {% endif %}
+
+            <textarea name="cover_letter" rows="3"
+                      placeholder="Cover letter (optional)"
+                      class="w-full p-3 rounded-lg bg-white/10 border border-white/20
+                             text-white placeholder-gray-400 resize-none
+                             focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"></textarea>
+
+            <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 px-5 py-2 rounded-lg text-white font-semibold transition
+                    {% if not current_user.resume %} opacity-50 cursor-not-allowed {% endif %}"
+                    {% if not current_user.resume %} disabled {% endif %}>
+                Apply Now
+            </button>
+        </form>
+
+    </div>
+    {% endfor %}
+
+</div>
+{% else %}
+<p class="text-center text-gray-400">No jobs available at the moment.</p>
+{% endif %}
+
+{% endblock %}

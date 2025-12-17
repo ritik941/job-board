@@ -2,41 +2,31 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
-# ==========================
-# User Model
-# ==========================
 class User(db.Model):
+    __tablename__ = "user"   # 🔥 THIS LINE FIXES EVERYTHING
+
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'recruiter' or 'seeker'
-
-    # Relationships
-    jobs = db.relationship('Job', backref='poster', lazy=True)
-    applications = db.relationship('Application', backref='applicant', lazy=True)
+    username = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
 
 
-# ==========================
-# Job Model
-# ==========================
 class Job(db.Model):
+    __tablename__ = "job"
+
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(150), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    posted_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    location = db.Column(db.String(100))  # Optional field for job location
-
-    # Relationships
-    applications = db.relationship('Application', backref='job', lazy=True)
+    title = db.Column(db.String(200))
+    description = db.Column(db.Text)
+    location = db.Column(db.String(100))
+    posted_by = db.Column(db.Integer, db.ForeignKey("user.id"))
 
 
-# ==========================
-# Application Model
-# ==========================
 class Application(db.Model):
+    __tablename__ = "application"
+
     id = db.Column(db.Integer, primary_key=True)
-    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    job_id = db.Column(db.Integer, db.ForeignKey("job.id"))
     cover_letter = db.Column(db.Text)
-    status = db.Column(db.String(20), default="pending")  # NEW: pending/accepted/rejected
+    status = db.Column(db.String(20), default="pending")

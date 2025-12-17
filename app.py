@@ -3,10 +3,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 from flask_mail import Mail, Message
-from flask_migrate import Migrate  # ✅ Added for migrations
 from models import db, User, Job, Application
 
 app = Flask(__name__)
+basedir = os.path.abspath(os.path.dirname(__file__))
+
 
 # ================= EMAIL CONFIG =================
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -23,12 +24,17 @@ mail = Mail(app)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-fallback-key')
 
 # ================= DATABASE =====================
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'job_board.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 
 db.init_app(app)
-migrate = Migrate(app, db)  # ✅ Initialize Flask-Migrate
+with app.app_context():
+    db.create_all()
+
 # ===============================================
 
 # ================= UPLOAD FOLDER =================

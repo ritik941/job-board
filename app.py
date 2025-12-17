@@ -135,7 +135,6 @@ def recruiter_dashboard():
     )
 
 
-
 # ---------- POST JOB ----------
 @app.route('/post-job', methods=['GET', 'POST'])
 def post_job():
@@ -174,7 +173,10 @@ def apply_job(job_id):
     if 'user_id' not in session or session.get('role') != 'seeker':
         return redirect('/login')
 
-    user = User.query.get(session['user_id'])
+    user = db.session.get(User, session['user_id'])
+    if not user:
+        flash("User not found.", "error")
+        return redirect('/login')
 
     if Application.query.filter_by(job_id=job_id, user_id=user.id).first():
         flash("You have already applied.", "error")
@@ -184,19 +186,20 @@ def apply_job(job_id):
         job_id=job_id,
         user_id=user.id,
         cover_letter=request.form.get('cover_letter', ''),
-        status="pending"  # ✅ Added status
+        status="pending"
     )
     db.session.add(application)
     db.session.commit()
 
     try:
-        job = Job.query.get(job_id)
-        msg = Message(
-            "Application Submitted",
-            recipients=[user.email]
-        )
-        msg.body = f"Hi {user.username},\n\nYour application for '{job.title}' has been submitted successfully."
-        mail.send(msg)
+        job = db.session.get(Job, job_id)
+        if job:
+            msg = Message(
+                "Application Submitted",
+                recipients=[user.email]
+            )
+            msg.body = f"Hi {user.username},\n\nYour application for '{job.title}' has been submitted successfully."
+            mail.send(msg)
     except Exception as e:
         print("❌ Email failed:", e)
 
@@ -210,19 +213,24 @@ def accept_applicant(app_id):
     if 'user_id' not in session or session.get('role') != 'recruiter':
         return redirect('/login')
 
-    application = Application.query.get_or_404(app_id)
+    application = db.session.get(Application, app_id)
+    if not application:
+        flash("Application not found.", "error")
+        return redirect('/recruiter/dashboard')
+
     application.status = "accepted"
     db.session.commit()
 
-    user = User.query.get(application.user_id)
-    job = Job.query.get(application.job_id)
+    user = db.session.get(User, application.user_id)
+    job = db.session.get(Job, application.job_id)
 
     try:
-        msg = Message(
-            subject=f"Application Accepted for {job.title}",
-            recipients=[user.email]
-        )
-        msg.body = f"""
+        if user and job:
+            msg = Message(
+                subject=f"Application Accepted for {job.title}",
+                recipients=[user.email]
+            )
+            msg.body = f"""
 Hi {user.username},
 
 🎉 Congratulations!
@@ -232,8 +240,7 @@ Your application for "{job.title}" has been ACCEPTED.
 Regards,
 Job Board Team
 """
-        mail.send(msg)
-
+            mail.send(msg)
     except Exception as e:
         print("❌ Email sending failed:", e)
 
@@ -247,20 +254,25 @@ def reject_applicant(app_id):
     if 'user_id' not in session or session.get('role') != 'recruiter':
         return redirect('/login')
 
-    application = Application.query.get_or_404(app_id)
+    application = db.session.get(Application, app_id)
+    if not application:
+        flash("Application not found.", "error")
+        return redirect('/recruiter/dashboard')
+
     application.status = "rejected"
     db.session.commit()
 
-    user = User.query.get(application.user_id)
-    job = Job.query.get(application.job_id)
+    user = db.session.get(User, application.user_id)
+    job = db.session.get(Job, application.job_id)
 
     try:
-        msg = Message(
-            subject=f"Application Rejected for {job.title}",
-            recipients=[user.email]
-        )
-        msg.body = f"Hi {user.username},\n\nYour application for '{job.title}' was rejected."
-        mail.send(msg)
+        if user and job:
+            msg = Message(
+                subject=f"Application Rejected for {job.title}",
+                recipients=[user.email]
+            )
+            msg.body = f"Hi {user.username},\n\nYour application for '{job.title}' was rejected."
+            mail.send(msg)
     except Exception as e:
         print("❌ Email failed:", e)
 
@@ -272,4 +284,3 @@ def reject_applicant(app_id):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-

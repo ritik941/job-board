@@ -14,7 +14,6 @@ app.config.update(
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-
 # ================= EMAIL CONFIG =================
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
@@ -31,16 +30,13 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-fallback-key')
 
 # ================= DATABASE =====================
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-
 db.init_app(app)
 with app.app_context():
     db.create_all()
-
 # ===============================================
 
 # ================= UPLOAD FOLDER =================
@@ -77,7 +73,6 @@ def signup():
 
     return render_template('signup.html')
 
-
 # ---------- LOGIN ----------
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -102,13 +97,11 @@ def login():
 
     return render_template('login.html')
 
-
 # ---------- LOGOUT ----------
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/login')
-
 
 # ---------- RECRUITER DASHBOARD ----------
 @app.route('/recruiter/dashboard')
@@ -117,9 +110,7 @@ def recruiter_dashboard():
         return redirect('/login')
 
     recruiter_id = session['user_id']
-
     jobs = Job.query.filter_by(posted_by=recruiter_id).all()
-
     applications = (
         Application.query
         .join(Job, Application.job_id == Job.id)
@@ -133,7 +124,6 @@ def recruiter_dashboard():
         applications=applications,
         username=session['username']
     )
-
 
 # ---------- POST JOB ----------
 @app.route('/post-job', methods=['GET', 'POST'])
@@ -156,7 +146,6 @@ def post_job():
 
     return render_template('post_job.html')
 
-
 # ---------- SEEKER DASHBOARD ----------
 @app.route('/seeker/dashboard')
 def seeker_dashboard():
@@ -165,7 +154,6 @@ def seeker_dashboard():
 
     jobs = Job.query.all()
     return render_template('seeker_dashboard.html', jobs=jobs, username=session['username'])
-
 
 # ---------- APPLY JOB ----------
 @app.route('/apply/<int:job_id>', methods=['POST'])
@@ -201,11 +189,11 @@ def apply_job(job_id):
             msg.body = f"Hi {user.username},\n\nYour application for '{job.title}' has been submitted successfully."
             mail.send(msg)
     except Exception as e:
+        flash(f"Email sending failed: {e}", "error")
         print("❌ Email failed:", e)
 
     flash("Application submitted!", "success")
     return redirect('/seeker/dashboard')
-
 
 # ---------- ACCEPT APPLICANT ----------
 @app.route('/accept/<int:app_id>', methods=['POST'])
@@ -242,11 +230,11 @@ Job Board Team
 """
             mail.send(msg)
     except Exception as e:
+        flash(f"Email sending failed: {e}", "error")
         print("❌ Email sending failed:", e)
 
     flash("Applicant accepted & email sent!", "success")
     return redirect('/recruiter/dashboard')
-
 
 # ---------- REJECT APPLICANT ----------
 @app.route('/reject/<int:app_id>', methods=['POST'])
@@ -274,11 +262,11 @@ def reject_applicant(app_id):
             msg.body = f"Hi {user.username},\n\nYour application for '{job.title}' was rejected."
             mail.send(msg)
     except Exception as e:
-        print("❌ Email failed:", e)
+        flash(f"Email sending failed: {e}", "error")
+        print("❌ Email sending failed:", e)
 
     flash("Applicant rejected & email sent!", "success")
     return redirect('/recruiter/dashboard')
-
 
 # ---------- RUN ----------
 if __name__ == "__main__":

@@ -98,10 +98,14 @@ def recruiter_dashboard():
         return redirect("/login")
 
     recruiter_id = session["user_id"]
+
     jobs = Job.query.filter_by(posted_by=recruiter_id).all()
+
     applications = (
-        Application.query.join(Job)
+        Application.query
+        .join(Job)
         .filter(Job.posted_by == recruiter_id)
+        .order_by(Application.id.desc())
         .all()
     )
 
@@ -140,8 +144,15 @@ def seeker_dashboard():
         return redirect("/login")
 
     user_id = session["user_id"]
+
     jobs = Job.query.all()
-    applications = Application.query.filter_by(user_id=user_id).all()
+
+    applications = (
+        Application.query
+        .filter_by(user_id=user_id)
+        .order_by(Application.id.desc())
+        .all()
+    )
 
     return render_template(
         "seeker_dashboard.html",
@@ -156,22 +167,22 @@ def apply_job(job_id):
     if session.get("role") != "seeker":
         return redirect("/login")
 
-    user = db.session.get(User, session["user_id"])
+    user_id = session["user_id"]
 
-    if Application.query.filter_by(job_id=job_id, user_id=user.id).first():
-        flash("Already applied", "info")
+    if Application.query.filter_by(job_id=job_id, user_id=user_id).first():
+        flash("You already applied for this job", "error")
         return redirect("/seeker/dashboard")
 
     application = Application(
         job_id=job_id,
-        user_id=user.id,
+        user_id=user_id,
         cover_letter=request.form.get("cover_letter", ""),
         status="pending"
     )
     db.session.add(application)
     db.session.commit()
 
-    flash("Application submitted", "success")
+    flash("Application submitted successfully", "success")
     return redirect("/seeker/dashboard")
 
 # ---------- ACCEPT ----------
@@ -181,6 +192,11 @@ def accept_applicant(app_id):
         return redirect("/login")
 
     application = db.session.get(Application, app_id)
+
+    if not application:
+        flash("Application not found", "error")
+        return redirect("/recruiter/dashboard")
+
     application.status = "accepted"
     db.session.commit()
 
@@ -194,6 +210,11 @@ def reject_applicant(app_id):
         return redirect("/login")
 
     application = db.session.get(Application, app_id)
+
+    if not application:
+        flash("Application not found", "error")
+        return redirect("/recruiter/dashboard")
+
     application.status = "rejected"
     db.session.commit()
 

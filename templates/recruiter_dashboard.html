@@ -9,7 +9,7 @@
     </div>
 
     <a href="{{ url_for('post_job') }}"
-       class="btn-glow bg-emerald-600 hover:bg-emerald-500
+       class="bg-emerald-600 hover:bg-emerald-500
               px-5 py-3 rounded-lg text-white font-semibold transition">
         ➕ Post New Job
     </a>
@@ -18,102 +18,95 @@
 <!-- Jobs Section -->
 {% if jobs %}
 <div class="grid md:grid-cols-2 gap-6">
-    {% for job in jobs %}
-    <div class="bg-white/5 backdrop-blur border border-white/10
-                rounded-2xl p-6 hover:shadow-2xl hover:scale-[1.02]
-                transition duration-300">
 
-        <h3 class="text-xl font-semibold text-indigo-400">{{ job.title }}</h3>
-        <p class="text-gray-300 mt-3 line-clamp-3">{{ job.description }}</p>
+{% for job in jobs %}
+<div class="bg-white/5 border border-white/10 rounded-2xl p-6">
 
-        <!-- Applications -->
-        <div class="mt-5">
-            {% if job.applications %}
-                <p class="text-sm text-gray-400 mb-3">Applications ({{ job.applications|length }})</p>
-                <div class="space-y-3 max-h-64 overflow-y-auto pr-2">
+    <h3 class="text-xl font-semibold text-indigo-400">
+        {{ job.title }}
+    </h3>
+    <p class="text-gray-300 mt-2">
+        {{ job.description }}
+    </p>
 
-                    {% for app in job.applications %}
-                    <div class="bg-white/10 p-3 rounded-lg border border-white/10 flex justify-between items-center">
+    <!-- Applications -->
+    <div class="mt-5">
+        {% if job.applications %}
+        <p class="text-sm text-gray-400 mb-3">
+            Applications ({{ job.applications|length }})
+        </p>
 
-                        <div>
-                            <p class="text-white font-medium">{{ app.user.username }}</p>
-                            <p class="text-sm text-gray-400">{{ app.user.email }}</p>
-                            <p class="text-sm text-gray-300 mt-1">{{ app.cover_letter or "No cover letter provided." }}</p>
-                            {% if app.resume %}
-                                <a href="{{ url_for('static', filename='uploads/' ~ app.resume) }}"
-                                   target="_blank"
-                                   class="text-indigo-400 hover:underline text-sm">📄 Open Resume</a>
-                            {% endif %}
-                        </div>
+        <div class="space-y-3">
+            {% for app in job.applications %}
+            <div class="bg-white/10 p-4 rounded-lg border border-white/10">
 
-                        <!-- Accept / Reject Buttons -->
-                        <div class="flex flex-col space-y-2">
-                            <button onclick="openModal('modal-{{ app.id }}')"
-                                    class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-lg text-sm font-semibold">
-                                Accept
-                            </button>
-                            <button onclick="openModal('modal-{{ app.id }}-reject')"
-                                    class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-sm font-semibold">
-                                Reject
-                            </button>
-                        </div>
+                <!-- Applicant Info -->
+                <p class="text-white font-semibold">
+                    {{ app.user.username }}
+                </p>
+                <p class="text-sm text-gray-400">
+                    {{ app.user.email }}
+                </p>
 
-                        <!-- Accept Modal -->
-                        <div id="modal-{{ app.id }}" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div class="bg-white rounded-lg p-6 w-11/12 md:w-1/2">
-                                <h3 class="text-xl font-bold mb-2">Review Application</h3>
-                                <p><strong>Applicant:</strong> {{ app.user.username }}</p>
-                                <p><strong>Email:</strong> {{ app.user.email }}</p>
-                                <p><strong>Cover Letter:</strong> {{ app.cover_letter or "No cover letter" }}</p>
-                                {% if app.resume %}
-                                <a href="{{ url_for('static', filename='uploads/' ~ app.resume) }}"
-                                   target="_blank"
-                                   class="text-indigo-600 underline">📄 Open Resume</a>
-                                {% endif %}
-                                <div class="mt-4 flex justify-end space-x-2">
-                                    <form method="POST" action="{{ url_for('accept_applicant', app_id=app.id) }}">
-                                        <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg">Confirm Accept</button>
-                                    </form>
-                                    <button onclick="closeModal('modal-{{ app.id }}')" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded-lg">Cancel</button>
-                                </div>
-                            </div>
-                        </div>
+                <p class="text-sm text-gray-300 mt-2">
+                    {{ app.cover_letter or "No cover letter provided." }}
+                </p>
 
-                        <!-- Reject Modal -->
-                        <div id="modal-{{ app.id }}-reject" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div class="bg-white rounded-lg p-6 w-11/12 md:w-1/2">
-                                <h3 class="text-xl font-bold mb-2">Reject Application?</h3>
-                                <p><strong>Applicant:</strong> {{ app.user.username }}</p>
-                                <p><strong>Email:</strong> {{ app.user.email }}</p>
-                                <div class="mt-4 flex justify-end space-x-2">
-                                    <form method="POST" action="{{ url_for('reject_applicant', app_id=app.id) }}">
-                                        <button type="submit" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg">Confirm Reject</button>
-                                    </form>
-                                    <button onclick="closeModal('modal-{{ app.id }}-reject')" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded-lg">Cancel</button>
-                                </div>
-                            </div>
-                        </div>
+                <!-- STATUS -->
+                <p class="mt-2 font-semibold">
+                    Status:
+                    {% if app.status == "accepted" %}
+                        <span class="text-green-400">Accepted ✅</span>
+                    {% elif app.status == "rejected" %}
+                        <span class="text-red-400">Rejected ❌</span>
+                    {% else %}
+                        <span class="text-yellow-400">Pending ⏳</span>
+                    {% endif %}
+                </p>
 
-                    </div>
-                    {% endfor %}
+                <!-- ACTION BUTTONS -->
+                {% if app.status == "pending" %}
+                <div class="flex gap-3 mt-3">
+
+                    <form method="POST"
+                          action="{{ url_for('accept_applicant', app_id=app.id) }}">
+                        <button class="bg-green-600 hover:bg-green-500
+                                       px-4 py-1 rounded text-white font-semibold">
+                            Accept
+                        </button>
+                    </form>
+
+                    <form method="POST"
+                          action="{{ url_for('reject_applicant', app_id=app.id) }}">
+                        <button class="bg-red-600 hover:bg-red-500
+                                       px-4 py-1 rounded text-white font-semibold">
+                            Reject
+                        </button>
+                    </form>
 
                 </div>
-            {% else %}
-                <p class="text-sm text-gray-500 mt-4">No applications yet.</p>
-            {% endif %}
+                {% endif %}
+
+            </div>
+            {% endfor %}
         </div>
 
+        {% else %}
+        <p class="text-sm text-gray-500 mt-4">
+            No applications yet.
+        </p>
+        {% endif %}
     </div>
-    {% endfor %}
+
+</div>
+{% endfor %}
+
 </div>
 
 {% else %}
-<p class="text-gray-400">You haven't posted any jobs yet.</p>
+<p class="text-gray-400">
+    You haven't posted any jobs yet.
+</p>
 {% endif %}
-
-<script>
-    function openModal(id){ document.getElementById(id).classList.remove('hidden'); }
-    function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
-</script>
 
 {% endblock %}

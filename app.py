@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
-from flask_mail import Mail, Message
 from models import db, User, Job, Application
 
 # ================= APP =================
@@ -31,24 +30,6 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 with app.app_context():
     db.create_all()
-
-# ================= EMAIL =================
-MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
-MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
-
-if not MAIL_USERNAME or not MAIL_PASSWORD:
-    print("❌ MAIL CREDENTIALS NOT SET")
-
-app.config.update(
-    MAIL_SERVER="smtp.gmail.com",
-    MAIL_PORT=587,
-    MAIL_USE_TLS=True,
-    MAIL_USERNAME=MAIL_USERNAME,
-    MAIL_PASSWORD=MAIL_PASSWORD,
-    MAIL_DEFAULT_SENDER=MAIL_USERNAME
-)
-
-mail = Mail(app)
 
 # ================= ROUTES =================
 
@@ -147,7 +128,7 @@ def post_job():
         db.session.add(job)
         db.session.commit()
 
-        flash("Job posted", "success")
+        flash("Job posted successfully", "success")
         return redirect("/recruiter/dashboard")
 
     return render_template("post_job.html")
@@ -158,10 +139,14 @@ def seeker_dashboard():
     if session.get("role") != "seeker":
         return redirect("/login")
 
+    user_id = session["user_id"]
     jobs = Job.query.all()
+    applications = Application.query.filter_by(user_id=user_id).all()
+
     return render_template(
         "seeker_dashboard.html",
         jobs=jobs,
+        applications=applications,
         username=session["username"]
     )
 
@@ -186,19 +171,6 @@ def apply_job(job_id):
     db.session.add(application)
     db.session.commit()
 
-    job = db.session.get(Job, job_id)
-
-    try:
-        msg = Message(
-            subject="Application Submitted",
-            recipients=[user.email],
-            body=f"Hi {user.username}, your application for {job.title} was submitted."
-        )
-        mail.send(msg)
-        print("✅ EMAIL SENT: APPLICATION SUBMITTED")
-    except Exception as e:
-        print("❌ EMAIL FAILED:", repr(e))
-
     flash("Application submitted", "success")
     return redirect("/seeker/dashboard")
 
@@ -211,20 +183,6 @@ def accept_applicant(app_id):
     application = db.session.get(Application, app_id)
     application.status = "accepted"
     db.session.commit()
-
-    user = db.session.get(User, application.user_id)
-    job = db.session.get(Job, application.job_id)
-
-    try:
-        msg = Message(
-            subject=f"Application Accepted for {job.title}",
-            recipients=[user.email],
-            body=f"Congratulations {user.username}, you are selected for {job.title}."
-        )
-        mail.send(msg)
-        print("✅ EMAIL SENT: ACCEPTED")
-    except Exception as e:
-        print("❌ EMAIL FAILED:", repr(e))
 
     flash("Applicant accepted", "success")
     return redirect("/recruiter/dashboard")
@@ -239,36 +197,8 @@ def reject_applicant(app_id):
     application.status = "rejected"
     db.session.commit()
 
-    user = db.session.get(User, application.user_id)
-    job = db.session.get(Job, application.job_id)
-
-    try:
-        msg = Message(
-            subject=f"Application Rejected for {job.title}",
-            recipients=[user.email],
-            body=f"Hi {user.username}, unfortunately your application was rejected."
-        )
-        mail.send(msg)
-        print("✅ EMAIL SENT: REJECTED")
-    except Exception as e:
-        print("❌ EMAIL FAILED:", repr(e))
-
     flash("Applicant rejected", "success")
     return redirect("/recruiter/dashboard")
-
-# ---------- TEST EMAIL ----------
-@app.route("/test-email")
-def test_email():
-    try:
-        msg = Message(
-            subject="Render Email Test",
-            recipients=[MAIL_USERNAME],
-            body="If you received this, SMTP works on Render 🎉"
-        )
-        mail.send(msg)
-        return "✅ Test email sent"
-    except Exception as e:
-        return f"❌ Email failed: {repr(e)}"
 
 # ---------- RUN ----------
 if __name__ == "__main__":

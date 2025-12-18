@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="mb-6">
+      {% for category, message in messages %}
+        <div class="p-3 rounded mb-2
+          {% if category == 'success' %}bg-green-600 text-white
+          {% elif category == 'error' %}bg-red-600 text-white
+          {% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
 <!-- Header -->
 <div class="flex justify-between items-center mb-8">
     <div>
@@ -51,6 +67,17 @@
                 <p class="text-sm text-gray-300 mt-2">
                     {{ app.cover_letter or "No cover letter provided." }}
                 </p>
+
+                <!-- Resume Download -->
+                {% if app.resume %}
+                <p class="mt-2">
+                    <a href="{{ url_for('uploaded_file', filename=app.resume) }}"
+                       target="_blank"
+                       class="text-indigo-400 hover:underline text-sm">
+                        📄 Download Resume
+                    </a>
+                </p>
+                {% endif %}
 
                 <!-- STATUS -->
                 <p class="mt-2 font-semibold">

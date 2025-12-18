@@ -38,4 +38,5 @@ class Application(db.Model):
     job_id = db.Column(db.Integer, db.ForeignKey("job.id"))
     cover_letter = db.Column(db.Text)
     status = db.Column(db.String(20), default="pending")
-
+    resume = db.Column(db.String(255))
+ 

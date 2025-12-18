@@ -49,6 +49,17 @@
                     <span class="text-yellow-400 font-bold">Pending ⏳</span>
                 {% endif %}
             </p>
+
+            {% if app.resume %}
+            <p class="mt-2">
+                <a href="{{ url_for('uploaded_file', filename=app.resume) }}" 
+                   target="_blank" 
+                   class="text-indigo-400 hover:underline text-sm">
+                   📄 View Resume
+                </a>
+            </p>
+            {% endif %}
+
         </div>
         {% endfor %}
     </div>
@@ -101,6 +112,7 @@
         <!-- Apply Form -->
         <form method="POST"
               action="{{ url_for('apply_job', job_id=job.id) }}"
+              enctype="multipart/form-data"
               class="mt-5 space-y-3">
 
             <textarea name="cover_letter" rows="3"
@@ -109,6 +121,14 @@
                              border border-white/20 text-white
                              placeholder-gray-400 resize-none
                              focus:ring-2 focus:ring-indigo-500"></textarea>
+
+            <input type="file" name="resume" required
+                   accept=".pdf,.doc,.docx"
+                   class="w-full text-sm text-gray-300
+                          file:bg-indigo-600 file:text-white
+                          file:border-0 file:px-4 file:py-2
+                          file:rounded-lg file:cursor-pointer
+                          hover:file:bg-indigo-500">
 
             <button type="submit"
                     class="w-full bg-indigo-600 hover:bg-indigo-500

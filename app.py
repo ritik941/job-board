@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, redirect, session, url_for, flash
+from flask import Flask, render_template, request, redirect, session, url_for, flash, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import os
 from models import db, User, Job, Application
 
@@ -31,8 +32,19 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-# ================= ROUTES =================
+# ================= RESUME UPLOAD =================
+UPLOAD_FOLDER = "upload"  # tumhara existing folder
+ALLOWED_EXTENSIONS = {"pdf", "doc", "docx"}
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route("/upload/<filename>")
+def uploaded_file(filename):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+# ================= ROUTES =================
 @app.route("/")
 def home():
     return redirect(url_for("login"))
@@ -56,7 +68,6 @@ def signup():
 
         flash("Account created successfully", "success")
         return redirect("/login")
-
     return render_template("signup.html")
 
 # ---------- LOGIN ----------
@@ -67,7 +78,6 @@ def login():
         password = request.form["password"]
 
         user = User.query.filter_by(email=email).first()
-
         if user and check_password_hash(user.password, password):
             session.clear()
             session["user_id"] = user.id
@@ -79,10 +89,8 @@ def login():
                 if user.role.lower() == "recruiter"
                 else "/seeker/dashboard"
             )
-
         flash("Invalid credentials", "error")
         return redirect("/login")
-
     return render_template("login.html")
 
 # ---------- LOGOUT ----------
@@ -96,32 +104,16 @@ def logout():
 def recruiter_dashboard():
     if session.get("role") != "recruiter":
         return redirect("/login")
-
     recruiter_id = session["user_id"]
-
     jobs = Job.query.filter_by(posted_by=recruiter_id).all()
-
-    applications = (
-        Application.query
-        .join(Job)
-        .filter(Job.posted_by == recruiter_id)
-        .order_by(Application.id.desc())
-        .all()
-    )
-
-    return render_template(
-        "recruiter_dashboard.html",
-        jobs=jobs,
-        applications=applications,
-        username=session["username"]
-    )
+    applications = Application.query.join(Job).filter(Job.posted_by==recruiter_id).order_by(Application.id.desc()).all()
+    return render_template("recruiter_dashboard.html", jobs=jobs, applications=applications, username=session["username"])
 
 # ---------- POST JOB ----------
 @app.route("/post-job", methods=["GET", "POST"])
 def post_job():
     if session.get("role") != "recruiter":
         return redirect("/login")
-
     if request.method == "POST":
         job = Job(
             title=request.form["title"],
@@ -131,10 +123,8 @@ def post_job():
         )
         db.session.add(job)
         db.session.commit()
-
         flash("Job posted successfully", "success")
         return redirect("/recruiter/dashboard")
-
     return render_template("post_job.html")
 
 # ---------- SEEKER DASHBOARD ----------
@@ -142,46 +132,41 @@ def post_job():
 def seeker_dashboard():
     if session.get("role") != "seeker":
         return redirect("/login")
-
     user_id = session["user_id"]
-
     jobs = Job.query.all()
-
-    applications = (
-        Application.query
-        .filter_by(user_id=user_id)
-        .order_by(Application.id.desc())
-        .all()
-    )
-
-    return render_template(
-        "seeker_dashboard.html",
-        jobs=jobs,
-        applications=applications,
-        username=session["username"]
-    )
+    applications = Application.query.filter_by(user_id=user_id).order_by(Application.id.desc()).all()
+    return render_template("seeker_dashboard.html", jobs=jobs, applications=applications, username=session["username"])
 
 # ---------- APPLY JOB ----------
 @app.route("/apply/<int:job_id>", methods=["POST"])
 def apply_job(job_id):
     if session.get("role") != "seeker":
         return redirect("/login")
-
     user_id = session["user_id"]
 
     if Application.query.filter_by(job_id=job_id, user_id=user_id).first():
         flash("You already applied for this job", "error")
         return redirect("/seeker/dashboard")
 
+    resume_file = request.files.get("resume")
+    resume_filename = None
+    if resume_file and allowed_file(resume_file.filename):
+        filename = secure_filename(resume_file.filename)
+        resume_file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+        resume_filename = filename
+    else:
+        flash("Upload valid resume (PDF/DOC/DOCX)", "error")
+        return redirect("/seeker/dashboard")
+
     application = Application(
         job_id=job_id,
         user_id=user_id,
         cover_letter=request.form.get("cover_letter", ""),
+        resume=resume_filename,
         status="pending"
     )
     db.session.add(application)
     db.session.commit()
-
     flash("Application submitted successfully", "success")
     return redirect("/seeker/dashboard")
 
@@ -190,16 +175,12 @@ def apply_job(job_id):
 def accept_applicant(app_id):
     if session.get("role") != "recruiter":
         return redirect("/login")
-
     application = db.session.get(Application, app_id)
-
     if not application:
         flash("Application not found", "error")
         return redirect("/recruiter/dashboard")
-
     application.status = "accepted"
     db.session.commit()
-
     flash("Applicant accepted", "success")
     return redirect("/recruiter/dashboard")
 
@@ -208,16 +189,12 @@ def accept_applicant(app_id):
 def reject_applicant(app_id):
     if session.get("role") != "recruiter":
         return redirect("/login")
-
     application = db.session.get(Application, app_id)
-
     if not application:
         flash("Application not found", "error")
         return redirect("/recruiter/dashboard")
-
     application.status = "rejected"
     db.session.commit()
-
     flash("Applicant rejected", "success")
     return redirect("/recruiter/dashboard")
 

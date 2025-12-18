@@ -8,22 +8,18 @@ from models import db, User, Job, Application
 # ================= APP =================
 app = Flask(__name__)
 
-# ---------- SESSION CONFIG (Render safe) ----------
+# ---------- SESSION CONFIG ----------
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax"
 )
 
-# ---------- BASE DIR ----------
-basedir = os.path.abspath(os.path.dirname(__file__))
-
 # ---------- SECRET KEY ----------
 app.secret_key = os.environ.get("SECRET_KEY", "dev-fallback-key")
 
 # ================= DATABASE =================
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL not set")
 
@@ -38,12 +34,20 @@ with app.app_context():
     db.create_all()
 
 # ================= EMAIL =================
-app.config["MAIL_SERVER"] = "smtp.gmail.com"
-app.config["MAIL_PORT"] = 587
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
-app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
-app.config["MAIL_DEFAULT_SENDER"] = app.config["MAIL_USERNAME"]
+MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
+MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
+
+if not MAIL_USERNAME or not MAIL_PASSWORD:
+    print("⚠️ MAIL CREDENTIALS NOT SET")
+
+app.config.update(
+    MAIL_SERVER="smtp.gmail.com",
+    MAIL_PORT=587,
+    MAIL_USE_TLS=True,
+    MAIL_USERNAME=MAIL_USERNAME,
+    MAIL_PASSWORD=MAIL_PASSWORD,
+    MAIL_DEFAULT_SENDER=MAIL_USERNAME
+)
 
 mail = Mail(app)
 
@@ -52,9 +56,9 @@ def send_email_async(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
-            print("✅ Email sent")
+            print("✅ EMAIL SENT:", msg.subject)
         except Exception as e:
-            print("❌ Email failed:", e)
+            print("❌ EMAIL FAILED:", repr(e))
 
 # ================= ROUTES =================
 
@@ -126,8 +130,7 @@ def recruiter_dashboard():
 
     jobs = Job.query.filter_by(posted_by=recruiter_id).all()
     applications = (
-        Application.query
-        .join(Job)
+        Application.query.join(Job)
         .filter(Job.posted_by == recruiter_id)
         .all()
     )
@@ -195,11 +198,12 @@ def apply_job(job_id):
     db.session.commit()
 
     job = db.session.get(Job, job_id)
+
     msg = Message(
-        "Application Submitted",
-        recipients=[user.email]
+        subject="Application Submitted",
+        recipients=[user.email],
+        body=f"Hi {user.username}, your application for {job.title} was submitted."
     )
-    msg.body = f"Hi {user.username}, your application for {job.title} was submitted."
 
     threading.Thread(target=send_email_async, args=(app, msg)).start()
 
@@ -213,11 +217,6 @@ def accept_applicant(app_id):
         return redirect("/login")
 
     application = db.session.get(Application, app_id)
-
-    if application.status == "accepted":
-        flash("Already accepted", "info")
-        return redirect("/recruiter/dashboard")
-
     application.status = "accepted"
     db.session.commit()
 
@@ -225,10 +224,10 @@ def accept_applicant(app_id):
     job = db.session.get(Job, application.job_id)
 
     msg = Message(
-        f"Application Accepted for {job.title}",
-        recipients=[user.email]
+        subject=f"Application Accepted for {job.title}",
+        recipients=[user.email],
+        body=f"Congratulations {user.username}, you are selected for {job.title}."
     )
-    msg.body = f"Congratulations {user.username}, you are selected for {job.title}."
 
     threading.Thread(target=send_email_async, args=(app, msg)).start()
 
@@ -242,11 +241,6 @@ def reject_applicant(app_id):
         return redirect("/login")
 
     application = db.session.get(Application, app_id)
-
-    if application.status == "rejected":
-        flash("Already rejected", "info")
-        return redirect("/recruiter/dashboard")
-
     application.status = "rejected"
     db.session.commit()
 
@@ -254,36 +248,28 @@ def reject_applicant(app_id):
     job = db.session.get(Job, application.job_id)
 
     msg = Message(
-        f"Application Rejected for {job.title}",
-        recipients=[user.email]
+        subject=f"Application Rejected for {job.title}",
+        recipients=[user.email],
+        body=f"Hi {user.username}, unfortunately your application was rejected."
     )
-    msg.body = f"Hi {user.username}, unfortunately your application was rejected."
 
     threading.Thread(target=send_email_async, args=(app, msg)).start()
 
     flash("Applicant rejected", "success")
     return redirect("/recruiter/dashboard")
 
-# ---------- RUN ----------
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-import threading
-
-def send_email(app, msg):
-    with app.app_context():
-        try:
-            mail.send(msg)
-            print("✅ EMAIL SENT SUCCESSFULLY")
-        except Exception as e:
-            print("❌ EMAIL FAILED:", repr(e))
-
+# ---------- TEST EMAIL ----------
 @app.route("/test-email")
 def test_email():
     msg = Message(
         subject="Render Email Test",
-        recipients=[os.environ.get("MAIL_USERNAME")]
+        recipients=[MAIL_USERNAME],
+        body="If you received this, SMTP works on Render 🎉"
     )
-    msg.body = "If you received this, SMTP works on Render 🎉"
-    threading.Thread(target=send_email, args=(app, msg)).start()
+    threading.Thread(target=send_email_async, args=(app, msg)).start()
     return "Test email triggered"
+
+# ---------- RUN ----------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

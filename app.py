@@ -268,3 +268,22 @@ def reject_applicant(app_id):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+import threading
+
+def send_email(app, msg):
+    with app.app_context():
+        try:
+            mail.send(msg)
+            print("✅ EMAIL SENT SUCCESSFULLY")
+        except Exception as e:
+            print("❌ EMAIL FAILED:", repr(e))
+
+@app.route("/test-email")
+def test_email():
+    msg = Message(
+        subject="Render Email Test",
+        recipients=[os.environ.get("MAIL_USERNAME")]
+    )
+    msg.body = "If you received this, SMTP works on Render 🎉"
+    threading.Thread(target=send_email, args=(app, msg)).start()
+    return "Test email triggered"

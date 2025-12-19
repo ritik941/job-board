@@ -40,6 +40,20 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
+from sqlalchemy import text
+
+with app.app_context():
+    try:
+        db.session.execute(text("""
+            ALTER TABLE application
+            ADD COLUMN IF NOT EXISTS resume VARCHAR(255);
+        """))
+        db.session.commit()
+        print("Resume column ready")
+    except Exception as e:
+        db.session.rollback()
+        print("DB error:", e)
+
 
 with app.app_context():
     db.create_all()
